@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <title>SSE User Channel Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 1rem;
+        }
+
+        #result {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f2f2f2;
+            border: 1px solid #ccc;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+<h1>SSE: Real-time Messages by userID</h1>
+<input id="userIDInput" type="text" placeholder="Enter userID">
+<button id="startButton">Start SSE</button>
+<button id="closeButton">Close SSE</button>
+<div id="result"></div>
+
+<script>
+    let source;
+    const resultElement = document.getElementById("result");
+    const userIDInput = document.getElementById("userIDInput");
+    const startButton = document.getElementById("startButton");
+    const closeButton = document.getElementById("closeButton");
+
+    const urlParams = new URLSearchParams(window.location.search);
+    let userID = urlParams.get('userID') || "";
+    userIDInput.value = userID;
+
+    function appendLog(message) {
+        resultElement.textContent += message + "\n";
+        resultElement.scrollTop = resultElement.scrollHeight;
+    }
+
+    function startSSE() {
+        if (source) source.close();
+
+        userID = userIDInput.value.trim();
+        if (!userID) {
+            alert("Please enter a userID!");
+            return;
+        }
+
+        source = new EventSource(`http://localhost:8080/sse?userID=${encodeURIComponent(userID)}`);
+
+        source.onerror = (err) => {
+            appendLog("❌ SSE error");
+            console.error(err);
+        };
+
+        source.onopen = () => {
+            appendLog("✅ Connection opened");
+        };
+
+        source.addEventListener("current-value", (event) => {
+            try {
+                const parsed = JSON.parse(event.data);
+                appendLog("📨 Message: " + JSON.stringify(parsed.data));
+            } catch {
+                appendLog("⚠️ Could not parse: " + event.data);
+            }
+        });
+    }
+
+    startButton.onclick = startSSE;
+
+    closeButton.onclick = () => {
+        if (source) {
+            source.close();
+            appendLog("🛑 SSE connection closed");
+        }
+    };
+
+    if (userID) startSSE();
+</script>
+</body>
+</html>
